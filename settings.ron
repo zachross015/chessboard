@@ -1,0 +1,15 @@
+Config(
+    space_size: 100.,
+    light_color: Rgba(
+        red: 0.91,
+        green: 0.92,
+        blue: 0.94,
+        alpha: 1.0,
+    ),
+    dark_color: Rgba(
+        red: 0.47,
+        green: 0.53,
+        blue: 0.59,
+        alpha: 1.0,
+    ),
+)
