@@ -1108,6 +1108,7 @@ name = "chess"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "fen",
  "ron",
  "serde",
 ]
@@ -1407,6 +1408,12 @@ checksum = "d329bdeac514ee06249dabc27877490f17f5d371ec693360768b838e19f3ae10"
 dependencies = [
  "simd-adler32",
 ]
+
+[[package]]
+name = "fen"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56cb092763bde57dca1a598309e8154840a549ef0e7ea300d0899740af5cb9c2"
 
 [[package]]
 name = "filetime"
