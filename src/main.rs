@@ -20,14 +20,36 @@ struct Config {
     dark_color: Color
 }
 
+#[repr(usize)]
+enum Space {
+    A1, B1, C1, D1, E1, F1, G1, H1,
+    A2, B2, C2, D2, E2, F2, G2, H2,
+    A3, B3, C3, D3, E3, F3, G3, H3,
+    A4, B4, C4, D4, E4, F4, G4, H4,
+    A5, B5, C5, D5, E5, F5, G5, H5,
+    A6, B6, C6, D6, E6, F6, G6, H6,
+    A7, B7, C7, D7, E7, F7, G7, H7,
+    A8, B8, C8, D8, E8, F8, G8, H8,
+}
+
 #[derive(Resource)]
 struct Board(BoardState);
+
+impl Board {
+    pub fn move_piece(&mut self, original_space: Space, new_space: Space) {
+        let space = original_space as usize;
+        let og = &self.0.pieces[space.clone()];
+        self.0.pieces[new_space as usize] = og.clone();
+        self.0.pieces[space] = None;
+    }
+}
 
 fn main() {
 
     let config = load_ron::<Config>("settings.ron");
 
-    let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
+    // let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
+    let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0";
     let board = Board(BoardState::from_fen(fen).unwrap());
 
     match config {
@@ -81,7 +103,7 @@ fn load_pieces(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     asset_server: Res<AssetServer>,
     config: Res<Config>,
-    board: Res<Board>,
+    mut board: ResMut<Board>,
     ) {
     // Load pieces
     let texture_handle = asset_server.load("textures/chess_pieces.png");
