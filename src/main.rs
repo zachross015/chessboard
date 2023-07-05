@@ -4,7 +4,10 @@ use util::load_ron;
 use serde::Deserialize;
 use bevy::{
     prelude::*, 
-    sprite::MaterialMesh2dBundle, 
+    sprite::{
+        MaterialMesh2dBundle, 
+        Anchor,
+    },
     render::color::Color,
     window::WindowResolution,
 };
@@ -47,10 +50,13 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     config: Res<Config>,
+    asset_server: Res<AssetServer>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     ) {
 
     commands.spawn(Camera2dBundle::default());
 
+    // Draw board
     for i in 0..8 {
         for j in 0..8 {
             commands.spawn(MaterialMesh2dBundle {
@@ -67,5 +73,19 @@ fn setup(
             });
         }
     }
-    
+
+    // Load pieces
+    let texture_handle = asset_server.load("textures/chess_pieces.png");
+    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(2560. / 6., 853. / 2.), 6, 2, None, None);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    commands.spawn(SpriteSheetBundle {
+        texture_atlas: texture_atlas_handle.clone(),
+        sprite: TextureAtlasSprite {
+            index: 0,
+            custom_size: Some(Vec2::new(config.space_size, config.space_size)),
+            anchor: Anchor::BottomLeft,
+            ..default()
+        },
+        ..default()
+    });
 }
