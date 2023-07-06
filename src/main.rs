@@ -164,6 +164,7 @@ fn move_piece(
         for (piece_entity, mut transform, &space) in &mut pieces {
             if space == m.0 {
                 transform.translation = m.1.physical_position() * config.space_size;
+                commands.entity(piece_entity).remove::<Space>().insert(m.1);
             } else if space == m.1 {
                 commands.entity(piece_entity).despawn();
             }
@@ -201,6 +202,7 @@ fn animated_move_piece(
                 );
 
                 commands.entity(piece_entity).insert(Animator::new(tween));
+                commands.entity(piece_entity).remove::<Space>().insert(m.1);
             } else if *space == m.1 {
                 commands.entity(piece_entity).despawn();
             }
@@ -255,7 +257,7 @@ fn release_piece(
         commands.entity(entity).remove::<PickedPiece>();
         if let Some(space) = convert_cursor_position_to_space(&windows.single()) {
             println!("{entity_space:#?} {space:#?}");
-            commands.spawn(MovePiece(entity_space, space));
+            commands.spawn(AnimatedMovePiece(entity_space, space));
         } else {
             transform.translation = entity_space.physical_position();
         }
