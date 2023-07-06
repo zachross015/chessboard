@@ -14,7 +14,7 @@ use bevy::{
         MaterialMesh2dBundle, 
         Anchor,
     },
-    render::color::Color, input::common_conditions::{input_just_pressed, input_just_released}, window::PrimaryWindow,
+    render::color::Color, input::common_conditions::{input_just_pressed, input_just_released}, window::PrimaryWindow, math::Vec2Swizzles,
 };
 use bevy_tweening::*;
 use bevy_tweening::lens::TransformPositionLens;
@@ -25,6 +25,12 @@ struct Settings {
     light_color: Color,
     dark_color: Color,
     piece_move_speed: u64,
+}
+
+impl Settings {
+    pub fn board_offset(&self) -> Vec3 {
+        Vec3::new(-3.5 * self.space_size, -3.5 * self.space_size, 0.)
+    }
 }
 
 fn main() {
@@ -136,7 +142,7 @@ fn setup(
                         ColorMaterial::from(config.light_color)
                     }
                 }),
-                transform: Transform::from_translation(Vec3::new(((i as f32) - 3.5) * config.space_size, ((j as f32) - 3.5) * config.space_size, 0.)),
+                transform: Transform::from_translation(Vec3::new(i as f32, j as f32, 0.) * config.space_size + config.board_offset()),
                 ..default()
             });
         }
@@ -242,24 +248,29 @@ fn pick_piece_up(
 
 fn picked_piece(
     mut commands: Commands,
-    pieces: Query<(Entity, &Transform, &Space), With<PickedPiece>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    config: Res<Settings>,
+    mut pieces: Query<(Entity, &mut Transform), With<PickedPiece>>,
     ) {
-    for (entity, &transform, &entity_space) in pieces.iter() {
+    for (entity, mut transform) in pieces.iter_mut() {
+        if let Some(pos) = windows.single().cursor_position() {
+            transform.translation = Vec3::new(pos.x - config.space_size, pos.y - config.space_size, 0.) + config.board_offset();
+        }
     }
 }
 
 fn release_piece(
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
+    config: Res<Settings>,
     mut pieces: Query<(Entity, &mut Transform, &Space), With<PickedPiece>>,
     ) {
     for (entity, mut transform, &entity_space) in pieces.iter_mut() {
         commands.entity(entity).remove::<PickedPiece>();
         if let Some(space) = convert_cursor_position_to_space(&windows.single()) {
-            println!("{entity_space:#?} {space:#?}");
-            commands.spawn(AnimatedMovePiece(entity_space, space));
+            commands.spawn(MovePiece(entity_space, space));
         } else {
-            transform.translation = entity_space.physical_position();
+            transform.translation = entity_space.physical_position() * config.space_size;
         }
     } 
 }
