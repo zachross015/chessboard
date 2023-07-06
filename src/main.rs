@@ -54,6 +54,7 @@ fn main() {
                 .add_system(move_piece)
                 .add_system(animated_move_piece)
                 .add_system(pick_piece_up.run_if(input_just_pressed(MouseButton::Left)))
+                .add_system(picked_piece)
                 .add_system(release_piece.run_if(input_just_released(MouseButton::Left)))
                 .insert_resource(c)
                 .run();
@@ -143,6 +144,8 @@ fn setup(
 }
 
 
+// TODO Decouple move piece and animated move piece by attaching the components to the piece
+// themselves.
 #[derive(Component)]
 struct MovePiece(Space, Space);
 
@@ -158,10 +161,10 @@ fn move_piece(
         board.move_piece(m.0, m.1);
         commands.entity(entity).despawn();
 
-        for (piece_entity, mut transform, space) in &mut pieces {
-            if *space == m.0 {
+        for (piece_entity, mut transform, &space) in &mut pieces {
+            if space == m.0 {
                 transform.translation = m.1.physical_position() * config.space_size;
-            } else if *space == m.1 {
+            } else if space == m.1 {
                 commands.entity(piece_entity).despawn();
             }
         }
@@ -211,8 +214,11 @@ struct PickedPiece;
 fn convert_cursor_position_to_space(window: &Window) -> Option<Space> {
     if let Some(position) = window.cursor_position() {
         let board_position = position / Vec2::new(window.width(), window.height()) * 8.;
+        if board_position.x < 0. || board_position.x > 8. || board_position.y < 0. || board_position.y > 8. {
+            return None;
+        }
         let i = (board_position.y.floor() as usize * 8) + board_position.x.floor() as usize;
-        return Some(Space::from_usize(i).unwrap());
+        return Space::from_usize(i);
     }
     None
 }
@@ -222,14 +228,36 @@ fn pick_piece_up(
     windows: Query<&Window, With<PrimaryWindow>>,
     pieces: Query<(Entity, &Transform, &Space)>,
     ) {
+
+    if let Some(space) = convert_cursor_position_to_space(&windows.single()) {
+        for (entity, &transform, &entity_space) in pieces.iter() {
+            if space == entity_space {
+                commands.entity(entity).insert(PickedPiece);
+            }
+        }
+    }
 }
 
-fn picked_piece() {
+fn picked_piece(
+    mut commands: Commands,
+    pieces: Query<(Entity, &Transform, &Space), With<PickedPiece>>,
+    ) {
+    for (entity, &transform, &entity_space) in pieces.iter() {
+    }
 }
 
 fn release_piece(
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
-    pieces: Query<(Entity, &Transform, &Space, &PickedPiece)>,
+    mut pieces: Query<(Entity, &mut Transform, &Space), With<PickedPiece>>,
     ) {
+    for (entity, mut transform, &entity_space) in pieces.iter_mut() {
+        commands.entity(entity).remove::<PickedPiece>();
+        if let Some(space) = convert_cursor_position_to_space(&windows.single()) {
+            println!("{entity_space:#?} {space:#?}");
+            commands.spawn(MovePiece(entity_space, space));
+        } else {
+            transform.translation = entity_space.physical_position();
+        }
+    } 
 }
