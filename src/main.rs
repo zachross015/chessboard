@@ -13,7 +13,7 @@ use bevy::{
         MaterialMesh2dBundle, 
         Anchor,
     },
-    render::color::Color,
+    render::color::Color, input::common_conditions::{input_just_pressed, input_just_released},
 };
 use bevy_tweening::*;
 use bevy_tweening::lens::TransformPositionLens;
@@ -52,6 +52,8 @@ fn main() {
                 .add_startup_system(load_pieces)
                 .add_system(move_piece)
                 .add_system(animated_move_piece)
+                .add_system(pick_piece_up.run_if(input_just_pressed(MouseButton::Left)))
+                .add_system(release_piece.run_if(input_just_released(MouseButton::Left)))
                 .insert_resource(c)
                 .run();
             }
@@ -76,6 +78,7 @@ fn piece_index(piece: &Piece) -> usize {
     };
     index + row
 }
+
 
 fn load_pieces(
     mut commands: Commands,
@@ -109,6 +112,7 @@ fn load_pieces(
 
 }
 
+
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -135,28 +139,11 @@ fn setup(
             });
         }
     }
-
-    commands.spawn(AnimatedMovePiece(Space::A1, Space::A8));
-    commands.spawn(AnimatedMovePiece(Space::B1, Space::B8));
-    commands.spawn(AnimatedMovePiece(Space::C1, Space::C8));
-    commands.spawn(AnimatedMovePiece(Space::D1, Space::D8));
-    commands.spawn(AnimatedMovePiece(Space::E1, Space::E8));
-    commands.spawn(AnimatedMovePiece(Space::F1, Space::F8));
-    commands.spawn(AnimatedMovePiece(Space::G1, Space::G8));
-    commands.spawn(AnimatedMovePiece(Space::H1, Space::H8));
-
 }
 
-// TODO Move all of these under an enum
+
 #[derive(Component)]
 struct MovePiece(Space, Space);
-
-#[derive(Component)]
-struct AnimatedMovePiece(Space, Space);
-
-#[derive(Component)]
-struct RemovePiece(Space);
-
 
 fn move_piece(
     mut commands: Commands,
@@ -180,6 +167,10 @@ fn move_piece(
     }
  
 }
+
+
+#[derive(Component)]
+struct AnimatedMovePiece(Space, Space);
 
 fn animated_move_piece(
     mut commands: Commands,
@@ -211,5 +202,24 @@ fn animated_move_piece(
             }
         }
     }
- 
+}
+
+#[derive(Component)]
+struct PickedPiece; 
+
+fn pick_piece_up(
+    mut commands: Commands,
+    pieces: Query<(Entity, &Transform, &Space)>,
+    ) {
+    println!("Pressed") ;
+}
+
+fn picked_piece() {
+}
+
+fn release_piece(
+    mut commands: Commands,
+    pieces: Query<(Entity, &Transform, &Space)>,
+    ) {
+    println!("Released") ;
 }
