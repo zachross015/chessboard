@@ -1,6 +1,8 @@
 pub mod util;
 pub mod board;
 
+use std::time::Duration;
+
 use util::load_ron;
 use board::{Board, Piece, PieceKind, Space, FromPrimitive};
 
@@ -13,12 +15,15 @@ use bevy::{
     },
     render::color::Color,
 };
+use bevy_tweening::*;
+use bevy_tweening::lens::TransformPositionLens;
 
 #[derive(Resource, Deserialize)]
 struct Settings {
     space_size: f32,
     light_color: Color,
-    dark_color: Color
+    dark_color: Color,
+    piece_move_speed: u64,
 }
 
 fn main() {
@@ -41,10 +46,12 @@ fn main() {
                         ..default()
                     }
                 ))
+                .add_plugin(TweeningPlugin)
                 .insert_resource(board)
                 .add_startup_system(setup)
                 .add_startup_system(load_pieces)
                 .add_system(move_piece)
+                .add_system(animated_move_piece)
                 .insert_resource(c)
                 .run();
             }
@@ -129,9 +136,14 @@ fn setup(
         }
     }
 
-    commands.spawn(MovePiece(Space::A2, Space::A4));
-    commands.spawn(MovePiece(Space::C1, Space::E3));
-    commands.spawn(MovePiece(Space::D8, Space::D1));
+    commands.spawn(AnimatedMovePiece(Space::A1, Space::A8));
+    commands.spawn(AnimatedMovePiece(Space::B1, Space::B8));
+    commands.spawn(AnimatedMovePiece(Space::C1, Space::C8));
+    commands.spawn(AnimatedMovePiece(Space::D1, Space::D8));
+    commands.spawn(AnimatedMovePiece(Space::E1, Space::E8));
+    commands.spawn(AnimatedMovePiece(Space::F1, Space::F8));
+    commands.spawn(AnimatedMovePiece(Space::G1, Space::G8));
+    commands.spawn(AnimatedMovePiece(Space::H1, Space::H8));
 
 }
 
@@ -161,6 +173,39 @@ fn move_piece(
         for (piece_entity, mut transform, space) in &mut pieces {
             if *space == m.0 {
                 transform.translation = m.1.physical_position() * config.space_size;
+            } else if *space == m.1 {
+                commands.entity(piece_entity).despawn();
+            }
+        }
+    }
+ 
+}
+
+fn animated_move_piece(
+    mut commands: Commands,
+    mut board: ResMut<Board>,
+    moves: Query<(Entity, &AnimatedMovePiece)>,
+    pieces: Query<(Entity, &Transform, &Space)>,
+    config: Res<Settings>,
+    ) {
+
+    for (entity, m) in moves.iter() {
+        board.move_piece(m.0, m.1);
+        commands.entity(entity).despawn();
+
+        for (piece_entity, transform, space) in &pieces {
+            if *space == m.0 {
+
+                let tween = Tween::new(
+                    EaseMethod::Linear,
+                    Duration::from_millis(config.piece_move_speed),
+                    TransformPositionLens {
+                        start: transform.translation,
+                        end: m.1.physical_position() * config.space_size,
+                    }
+                );
+
+                commands.entity(piece_entity).insert(Animator::new(tween));
             } else if *space == m.1 {
                 commands.entity(piece_entity).despawn();
             }
