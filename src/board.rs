@@ -30,7 +30,7 @@ impl Board {
     }
 }
 
-#[derive(Copy, Clone, FromPrimitive, ToPrimitive, Component, PartialEq, Eq)]
+#[derive(Copy, Clone, FromPrimitive, ToPrimitive, Component, PartialEq, Eq, Debug)]
 pub enum Space {
     #[num_traits]
     A1, B1, C1, D1, E1, F1, G1, H1,

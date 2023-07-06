@@ -3,6 +3,7 @@ pub mod board;
 
 use std::time::Duration;
 
+use num_traits::Float;
 use util::load_ron;
 use board::{Board, Piece, PieceKind, Space, FromPrimitive};
 
@@ -13,7 +14,7 @@ use bevy::{
         MaterialMesh2dBundle, 
         Anchor,
     },
-    render::color::Color, input::common_conditions::{input_just_pressed, input_just_released},
+    render::color::Color, input::common_conditions::{input_just_pressed, input_just_released}, window::PrimaryWindow,
 };
 use bevy_tweening::*;
 use bevy_tweening::lens::TransformPositionLens;
@@ -207,11 +208,20 @@ fn animated_move_piece(
 #[derive(Component)]
 struct PickedPiece; 
 
+fn convert_cursor_position_to_space(window: &Window) -> Option<Space> {
+    if let Some(position) = window.cursor_position() {
+        let board_position = position / Vec2::new(window.width(), window.height()) * 8.;
+        let i = (board_position.y.floor() as usize * 8) + board_position.x.floor() as usize;
+        return Some(Space::from_usize(i).unwrap());
+    }
+    None
+}
+
 fn pick_piece_up(
     mut commands: Commands,
+    windows: Query<&Window, With<PrimaryWindow>>,
     pieces: Query<(Entity, &Transform, &Space)>,
     ) {
-    println!("Pressed") ;
 }
 
 fn picked_piece() {
@@ -219,7 +229,7 @@ fn picked_piece() {
 
 fn release_piece(
     mut commands: Commands,
-    pieces: Query<(Entity, &Transform, &Space)>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    pieces: Query<(Entity, &Transform, &Space, &PickedPiece)>,
     ) {
-    println!("Released") ;
 }
