@@ -1,6 +1,8 @@
 pub mod util;
+pub mod board;
+
 use util::load_ron;
-use fen::{ BoardState, Piece, PieceKind };
+use board::{Board, Piece, PieceKind, Space, FromPrimitive};
 
 use serde::Deserialize;
 use bevy::{
@@ -10,47 +12,22 @@ use bevy::{
         Anchor,
     },
     render::color::Color,
-    window::WindowResolution,
 };
 
 #[derive(Resource, Deserialize)]
-struct Config {
+struct Settings {
     space_size: f32,
     light_color: Color,
     dark_color: Color
 }
 
-#[repr(usize)]
-enum Space {
-    A1, B1, C1, D1, E1, F1, G1, H1,
-    A2, B2, C2, D2, E2, F2, G2, H2,
-    A3, B3, C3, D3, E3, F3, G3, H3,
-    A4, B4, C4, D4, E4, F4, G4, H4,
-    A5, B5, C5, D5, E5, F5, G5, H5,
-    A6, B6, C6, D6, E6, F6, G6, H6,
-    A7, B7, C7, D7, E7, F7, G7, H7,
-    A8, B8, C8, D8, E8, F8, G8, H8,
-}
-
-#[derive(Resource)]
-struct Board(BoardState);
-
-impl Board {
-    pub fn move_piece(&mut self, original_space: Space, new_space: Space) {
-        let space = original_space as usize;
-        let og = &self.0.pieces[space.clone()];
-        self.0.pieces[new_space as usize] = og.clone();
-        self.0.pieces[space] = None;
-    }
-}
-
 fn main() {
 
-    let config = load_ron::<Config>("settings.ron");
+    let config = load_ron::<Settings>("settings.ron");
 
     // let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
     let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0";
-    let board = Board(BoardState::from_fen(fen).unwrap());
+    let board = Board::from_fen(fen).unwrap();
 
     match config {
         Ok(c) => {
@@ -67,6 +44,7 @@ fn main() {
                 .insert_resource(board)
                 .add_startup_system(setup)
                 .add_startup_system(load_pieces)
+                .add_system(move_piece)
                 .insert_resource(c)
                 .run();
             }
@@ -74,12 +52,6 @@ fn main() {
             println!("{e}");
         }
     }
-}
-
-fn board_position(position: (usize, usize), config: &Res<Config>) -> Vec3 {
-    let xf = ((position.0 as f32) - 4.0) * config.space_size;
-    let yf = ((position.1 as f32) - 4.0) * config.space_size;
-    Vec3::new(xf, yf, 0.0)
 }
 
 fn piece_index(piece: &Piece) -> usize {
@@ -92,8 +64,8 @@ fn piece_index(piece: &Piece) -> usize {
         PieceKind::Pawn => 5,
     };
     let row = match piece.color {
-        fen::Color::White => 0,
-        fen::Color::Black => 6,
+        board::Color::White => 0,
+        board::Color::Black => 6,
     };
     index + row
 }
@@ -102,29 +74,29 @@ fn load_pieces(
     mut commands: Commands,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     asset_server: Res<AssetServer>,
-    config: Res<Config>,
-    mut board: ResMut<Board>,
+    config: Res<Settings>,
+    board: Res<Board>,
     ) {
     // Load pieces
     let texture_handle = asset_server.load("textures/chess_pieces.png");
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(2560. / 6., 853. / 2.), 6, 2, None, None);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
 
-    for (i, opt) in board.0.pieces.iter().enumerate() {
+    for (i, opt) in board.state().pieces.iter().enumerate() {
         if let Some(piece) = opt {
-            let position = (i % 8, i / 8);
+            let position = Space::from_usize(i).unwrap();
             let index = piece_index(piece);
             commands.spawn((SpriteSheetBundle {
                 texture_atlas: texture_atlas_handle.clone(),
                 sprite: TextureAtlasSprite {
-                    index: index,
+                    index,
                     custom_size: Some(Vec2::new(config.space_size, config.space_size)),
                     anchor: Anchor::BottomLeft,
                     ..default()
                 },
-                transform: Transform::from_translation(board_position(position, &config)),
+                transform: Transform::from_translation(position.physical_position() * config.space_size),
                 ..default()
-            }));
+            }, position));
         }
     }
 
@@ -134,7 +106,7 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    config: Res<Config>,
+    config: Res<Settings>,
     ) {
 
     commands.spawn(Camera2dBundle::default());
@@ -157,4 +129,42 @@ fn setup(
         }
     }
 
+    commands.spawn(MovePiece(Space::A2, Space::A4));
+    commands.spawn(MovePiece(Space::C1, Space::E3));
+    commands.spawn(MovePiece(Space::D8, Space::D1));
+
+}
+
+// TODO Move all of these under an enum
+#[derive(Component)]
+struct MovePiece(Space, Space);
+
+#[derive(Component)]
+struct AnimatedMovePiece(Space, Space);
+
+#[derive(Component)]
+struct RemovePiece(Space);
+
+
+fn move_piece(
+    mut commands: Commands,
+    mut board: ResMut<Board>,
+    moves: Query<(Entity, &MovePiece)>,
+    mut pieces: Query<(Entity, &mut Transform, &Space)>,
+    config: Res<Settings>,
+    ) {
+
+    for (entity, m) in moves.iter() {
+        board.move_piece(m.0, m.1);
+        commands.entity(entity).despawn();
+
+        for (piece_entity, mut transform, space) in &mut pieces {
+            if *space == m.0 {
+                transform.translation = m.1.physical_position() * config.space_size;
+            } else if *space == m.1 {
+                commands.entity(piece_entity).despawn();
+            }
+        }
+    }
+ 
 }

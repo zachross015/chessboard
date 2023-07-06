@@ -1,4 +1,4 @@
-Config(
+Settings(
     space_size: 100.,
     light_color: Rgba(
         red: 0.91,
